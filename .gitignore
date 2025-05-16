@@ -94,6 +94,7 @@ fabric.properties
 
 # Custom files
 /bin/check_xdebug.php
+xdebug.ini
 
 # Environment files
 .env
