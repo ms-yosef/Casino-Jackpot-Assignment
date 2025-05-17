@@ -1,53 +1,43 @@
 {
   "name": "ms/casino_jackpot",
-  "description": "Casino Jackpot Slot Machine Game. A simple slot machine Server/Client game with a twist.",
+  "description": "Casino Jackpot Slot Machine Game - Monorepo",
   "type": "project",
   "license": "proprietary",
   "minimum-stability": "stable",
   "prefer-stable": true,
   "require": {
-    "php": "^8.4",
-    "slim/slim": "^4.11",
-    "slim/psr7": "^1.6",
-    "monolog/monolog": "^3.3",
-    "php-di/php-di": "^7.0",
-    "vlucas/phpdotenv": "^5.5",
-    "doctrine/dbal": "^3.6",
-    "ramsey/uuid": "^4.7",
-    "guzzlehttp/guzzle": "^7.7",
-    "symfony/cache": "^6.3"
+    "php": "^8.4"
   },
   "require-dev": {
-    "roave/security-advisories": "dev-latest",
-    "codeception/codeception": "^5.0",
-    "codeception/module-phpbrowser": "^3.0",
-    "codeception/module-asserts": "^3.0",
-    "codeception/module-rest": "^3.3",
-    "codeception/module-db": "^3.1",
-    "phpstan/phpstan": "^1.10",
-    "squizlabs/php_codesniffer": "^3.7",
-    "symfony/var-dumper": "^6.3"
+    "phpstan/phpstan": "^1.12",
+    "squizlabs/php_codesniffer": "^3.13"
   },
+  "repositories": [
+    {
+      "type": "path",
+      "url": "packages/server",
+      "options": {
+        "symlink": true
+      }
+    }
+  ],
   "autoload": {
     "psr-4": {
-      "Casino\\Server\\": "src/Server/",
-      "Casino\\Client\\": "src/Client/"
-    }
-  },
-  "autoload-dev": {
-    "psr-4": {
-      "Tests\\": "tests/"
+      "Casino\\Client\\": "packages/client/src/"
     }
   },
   "scripts": {
-    "test": "codecept run",
-    "test:unit": "codecept run unit",
-    "test:functional": "codecept run functional",
-    "test:acceptance": "codecept run acceptance",
-    "cs:check": "phpcs",
-    "cs:fix": "phpcbf",
-    "phpstan": "phpstan analyse src tests --level=5",
-    "serve": "php -S localhost:8080 -t public"
+    "post-create-project-cmd": [
+      "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
+    ],
+    "check-all": [
+      "cd packages/server && composer test",
+      "cd packages/client && npm test",
+      "@phpstan"
+    ],
+    "phpstan": "phpstan analyse packages/client/src --level=5",
+    "serve-client": "php -S localhost:8080 -t packages/client/public",
+    "serve-server": "cd packages/server && composer serve"
   },
   "config": {
     "process-timeout": 0,

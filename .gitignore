@@ -93,21 +93,13 @@ fabric.properties
 /build/
 
 # Custom files
-/bin/check_xdebug.php
-xdebug.ini
-
-# Environment files
-.env
-.env.*
-!.env.example
+/packages/server/bin/check_xdebug.php
+/packages/server/bin/debug_test.php
+packages/server/xdebug.ini
 
 # Composer
 /vendor/
 composer.phar
-
-# Logs
-/logs/
-*.log
 
 # Cache
 /cache/
@@ -125,3 +117,17 @@ composer.phar
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Monorepo specific
+/packages/*/vendor/
+/packages/*/node_modules/
+/packages/*/composer.lock
+/packages/*/package-lock.json
+## Logs
+/logs/
+*.log
+/packages/*/logs/
+## Environment files
+/packages/*/.env
+/packages/*/.env.*
+!packages/server/.env.example

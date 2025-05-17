@@ -11,3 +11,8 @@
 - Created .gitignore file
 - Created composer.json, installed dependencies
 
+## Repository stage
+- Previous "monolith" repository was converted to monorepo
+- Created packages:
+    - casino_client
+    - casino_server
