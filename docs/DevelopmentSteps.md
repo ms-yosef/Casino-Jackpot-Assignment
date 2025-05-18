@@ -16,3 +16,14 @@
 - Created packages:
     - casino_client
     - casino_server
+
+## Client-side
+- Implemented minimalistic UI:
+     - table with 3 blocks in 1 row
+     - button 'SPIN' to do new roll (attempt) 
+     - implemented a spinning animation for each action (trembling, spinning, etc.)
+     - implemented a cash-out button that moves credits from the game session (to the user's account on the server in the future) and closes the session
+     - minimalistic UI for the result of the roll
+- Implemented autonomy mode:
+    - implemented a random number generator for the result of the roll
+

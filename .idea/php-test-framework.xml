@@ -5,6 +5,7 @@
       <tool tool_name="Codeception">
         <settings>
           <configurations>
+            <local_configuration executable_path="$PROJECT_DIR$/packages/server/vendor/codeception/codeception/codecept" />
             <local_configuration executable_path="$PROJECT_DIR$/vendor/codeception/codeception/codecept" />
           </configurations>
         </settings>
