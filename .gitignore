@@ -1,7 +1,8 @@
 ### PhpStorm+all template
 # Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio, WebStorm and Rider
 # Reference: https://intellij-support.jetbrains.com/hc/en-us/articles/206544839
-
+.idea
+.idea/
 # User-specific stuff
 .idea/php.xml
 .idea/**/workspace.xml
@@ -94,9 +95,9 @@ fabric.properties
 /build/
 
 # Custom files
-/packages/server/bin/check_xdebug.php
-/packages/server/bin/debug_test.php
-packages/server/xdebug.ini
+/packages/server/xdebug.ini
+/packages/server/bin/
+!/packages/server/bin/generate_env.php
 
 # Composer
 /vendor/
