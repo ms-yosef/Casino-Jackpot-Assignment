@@ -10,8 +10,7 @@ namespace Casino\Server\DTO;
 class GameConfigDTO
 {
     /**
-     * @param array<int, string> $symbols Used symbols in the game.
-     * @param array<string, float> $payouts Table of payouts (symbol => coefficient).
+     * @param array<string, float> $cardsData Table of symbols and their payouts (symbol => coefficient).
      * @param int $reelsCount Number of reels.
      * @param int $rowsCount Number of rows.
      * @param float $minBet Min bet.
@@ -19,8 +18,7 @@ class GameConfigDTO
      * @param array<string, array<int, int>> $specialSymbolsPositions Positions of special symbols.
      */
     public function __construct(
-        public readonly array $symbols,
-        public readonly array $payouts,
+        public readonly array $cardsData,
         public readonly int $reelsCount,
         public readonly int $rowsCount,
         public readonly float $minBet,
