@@ -15,7 +15,9 @@
     "doctrine/dbal": "^3.9",
     "ramsey/uuid": "^4.7",
     "guzzlehttp/guzzle": "^7.7",
-    "symfony/cache": "^6.3"
+    "symfony/cache": "^6.3",
+    "zircote/swagger-php": "^4.7",
+    "swagger-api/swagger-ui": "^5.12"
   },
   "require-dev": {
     "roave/security-advisories": "dev-latest",
@@ -30,12 +32,12 @@
   },
   "autoload": {
     "psr-4": {
-      "Casino\\Server\\": "src/Server/"
+      "Casino\\Server\\": "src/"
     }
   },
   "autoload-dev": {
     "psr-4": {
-      "Tests\\Server\\": "tests/"
+      "Casino\\Server\\Tests\\": "tests/"
     }
   },
   "scripts": {
@@ -46,7 +48,8 @@
     "cs:check": "phpcs",
     "cs:fix": "phpcbf",
     "phpstan": "phpstan analyse src tests --level=5",
-    "serve": "php -S localhost:8081 -t public"
+    "serve": "php -S localhost:8081 -t public",
+    "swagger": "php bin/generate-swagger.php"
   },
   "config": {
     "process-timeout": 0,
