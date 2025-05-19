@@ -36,4 +36,8 @@
     - POST /api/game/session
 - Implemented DTO classes
 - Implemented Interfaces (Factory, Repository, Service)
+- Created basic functionality for App:
+    - DefaultGameFactory
+    - InMemoryGameRepository
+    - DefaultGameService
 
