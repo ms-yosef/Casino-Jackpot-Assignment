@@ -40,4 +40,9 @@
     - DefaultGameFactory
     - InMemoryGameRepository
     - DefaultGameService
-
+- Implemented Cheating logic:
+    - If a user has between 40 and 60 credits, the server begins to slightly cheat:
+        - For each winning roll, before communicating back to the client, the server performs a 30% chance roll which decides if the server will re-roll that round.
+        - If the roll is true, then the server re-rolls and communicates the new result back.
+    - If the user has above 60 credits, the server acts the same, but the chance of re-rolling the round increases to 60%.
+        - If the roll is true, then the server re-rolls and communicates the new result back.
