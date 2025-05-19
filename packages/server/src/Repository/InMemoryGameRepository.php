@@ -34,13 +34,15 @@ class InMemoryGameRepository implements GameRepositoryInterface
      * @param int $rowsCount Number of rows in the game
      * @param float $minBet Minimum allowed bet amount
      * @param float $maxBet Maximum allowed bet amount
+     * @param float $initialCredits Initial credits for new sessions
      */
     public function __construct(
         private readonly LoggerInterface $logger,
         private readonly int $reelsCount,
         private readonly int $rowsCount,
         private readonly float $minBet,
-        private readonly float $maxBet
+        private readonly float $maxBet,
+        private readonly float $initialCredits = 10.0
     ) {
         // Initialize game configuration with proper signature
         $this->gameConfig = new GameConfigDTO(
@@ -57,12 +59,13 @@ class InMemoryGameRepository implements GameRepositoryInterface
             $this->maxBet,
             []
         );
-        
+
         $this->logger->info('InMemoryGameRepository initialized with configuration', [
             'reelsCount' => $this->reelsCount,
             'rowsCount' => $this->rowsCount,
             'minBet' => $this->minBet,
-            'maxBet' => $this->maxBet
+            'maxBet' => $this->maxBet,
+            'initialCredits' => $this->initialCredits
         ]);
     }
 
@@ -80,13 +83,16 @@ class InMemoryGameRepository implements GameRepositoryInterface
      */
     public function getSession(string $sessionId): ?GameSessionDTO
     {
+        $res = null;
         if (!isset($this->sessions[$sessionId])) {
             $this->logger->warning('Session not found', ['sessionId' => $sessionId]);
-            return null;
+        } else {
+            $this->sessions[$sessionId]->lastActivity = new \DateTimeImmutable();
+            $res = $this->sessions[$sessionId];
+            $this->logger->info('Retrieved session', ['sessionId' => $sessionId]);
         }
-        
-        $this->logger->info('Retrieved session', ['sessionId' => $sessionId]);
-        return $this->sessions[$sessionId];
+
+        return $res;
     }
 
     /**
@@ -94,6 +100,12 @@ class InMemoryGameRepository implements GameRepositoryInterface
      */
     public function createSession(float $initialBalance): GameSessionDTO
     {
+        // If initialBalance is not specified, use the default value from configuration
+        if ($initialBalance <= 0) {
+            $initialBalance = $this->initialCredits;
+            $this->logger->info('Using default initial balance', ['initialBalance' => $initialBalance]);
+        }
+
         // Generate a unique session ID
         $sessionId = uniqid('session_', true);
         
