@@ -8,12 +8,17 @@
 
 declare(strict_types=1);
 
+use Casino\Server\Config\AppFactory;
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
+$dotenv->load();
+
 // Set the absolute path to the project root
 define('ROOT_DIR', dirname(__DIR__));
 
-// Require the Composer autoloader
-require ROOT_DIR . '/vendor/autoload.php';
-
+/*
 // Basic response for testing
 header('Content-Type: application/json');
 echo json_encode([
@@ -21,3 +26,7 @@ echo json_encode([
     'message' => 'Casino Jackpot Slot Machine API',
     'documentation' => '/swagger/'
 ]);
+*/
+
+$app = (new AppFactory())->createApp();
+$app->run();

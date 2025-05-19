@@ -23,7 +23,8 @@
   ],
   "autoload": {
     "psr-4": {
-      "Casino\\Client\\": "packages/client/src/"
+      "Casino\\Client\\": "packages/client/src/",
+      "Casino\\Server\\": "packages/server/src/"
     }
   },
   "scripts": {
