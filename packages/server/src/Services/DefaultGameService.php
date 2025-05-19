@@ -15,6 +15,7 @@ use Casino\Server\Interfaces\Service\GameServiceInterface;
 use DateTimeImmutable;
 use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
+use Random\RandomException;
 
 /**
  * Default implementation of the game service.
@@ -24,16 +25,36 @@ use Psr\Log\LoggerInterface;
 readonly class DefaultGameService implements GameServiceInterface
 {
     /**
+     * Default thresholds for balance categories (low, medium, high)
+     */
+    private const DEFAULT_BALANCE_THRESHOLDS = [40, 60];
+    
+    /**
+     * Default chances for rerolling winning combinations based on balance category
+     */
+    private const DEFAULT_REROLL_CHANCES = [30, 60];
+
+    /**
      * @param GameRepositoryInterface $repository Game repository for data storage
      * @param GameFactoryInterface $factory Game factory for creating game objects
      * @param LoggerInterface $logger Logger for operations logging
+     * @param bool $cheatEnabled Whether the house advantage (cheat) is enabled
+     * @param array $cheatConfig Configuration for house advantage (cheat)
      */
     public function __construct(
         private GameRepositoryInterface $repository,
         private GameFactoryInterface    $factory,
-        private LoggerInterface         $logger
+        private LoggerInterface         $logger,
+        private bool                    $cheatEnabled = false,
+        private array                   $cheatConfig = [
+            'thresholds' => self::DEFAULT_BALANCE_THRESHOLDS, 
+            'chances' => self::DEFAULT_REROLL_CHANCES
+        ]
     ) {
-        $this->logger->info('DefaultGameService initialized');
+        $this->logger->info('DefaultGameService initialized', [
+            'cheatEnabled' => $this->cheatEnabled,
+            'cheatConfig' => $this->cheatConfig
+        ]);
     }
 
     /**
@@ -61,6 +82,7 @@ readonly class DefaultGameService implements GameServiceInterface
 
     /**
      * {@inheritdoc}
+     * @throws RandomException
      */
     public function processSpin(string $sessionId, SpinRequestDTO $request): SpinResultDTO
     {
@@ -97,6 +119,11 @@ readonly class DefaultGameService implements GameServiceInterface
 
         // Generate spin result
         $result = $this->factory->generateSpinResult($request->betAmount, $config);
+        
+        // Apply house advantage (cheat) if enabled and the result is a win
+        if ($this->cheatEnabled && $result->winAmount > 0) {
+            $result = $this->applyHouseAdvantage($result, $session, $request->betAmount, $config);
+        }
 
         // Save spin result
         $this->repository->saveSpinResult($sessionId, $result);
@@ -109,6 +136,93 @@ readonly class DefaultGameService implements GameServiceInterface
         ]);
 
         return $result;
+    }
+
+    /**
+     * Apply house advantage (cheat) based on player's balance.
+     * 
+     * @param SpinResultDTO $result Original spin result
+     * @param GameSessionDTO $session Current game session
+     * @param float $betAmount Bet amount
+     * @param GameConfigDTO $config Game configuration
+     * @return SpinResultDTO Potentially modified spin result
+     * @throws RandomException
+     */
+    private function applyHouseAdvantage(
+        SpinResultDTO $result, 
+        GameSessionDTO $session, 
+        float $betAmount, 
+        GameConfigDTO $config
+    ): SpinResultDTO {
+        // Extract thresholds and chances from config with defaults
+        $thresholds = $this->cheatConfig['thresholds'] ?? self::DEFAULT_BALANCE_THRESHOLDS;
+        $chances = $this->cheatConfig['chances'] ?? self::DEFAULT_REROLL_CHANCES;
+        
+        // Determine reroll chance based on player's balance
+        $rerollChance = $this->getRerollChanceForBalance($session->balance, $thresholds, $chances);
+        
+        // Log the reroll chance information
+        $this->logger->info('Checking house advantage', [
+            'sessionId' => $session->sessionId,
+            'balance' => $session->balance,
+            'rerollChance' => $rerollChance
+        ]);
+        
+        // No reroll needed if chance is 0
+        if ($rerollChance <= 0) {
+            return $result;
+        }
+        
+        // Determine if we should reroll based on the chance
+        if (random_int(1, 100) <= $rerollChance) {
+            $this->logger->info('Applying house advantage: rerolling winning result', [
+                'sessionId' => $session->sessionId,
+                'originalWinAmount' => $result->winAmount
+            ]);
+            
+            // Generate a new result (potentially non-winning)
+            $newResult = $this->factory->generateSpinResult($betAmount, $config);
+            
+            // Log the outcome of the reroll
+            $this->logger->info('House advantage applied', [
+                'sessionId' => $session->sessionId,
+                'originalWinAmount' => $result->winAmount,
+                'newWinAmount' => $newResult->winAmount,
+                'isStillWinning' => $newResult->winAmount > 0
+            ]);
+            
+            return $newResult;
+        }
+        
+        // No reroll occurred, return the original result
+        return $result;
+    }
+    
+    /**
+     * Get the reroll chance for the given balance based on thresholds.
+     * This method allows for easy extension if more balance categories are added in the future.
+     * 
+     * @param float $balance Current player balance
+     * @param array $thresholds Balance thresholds
+     * @param array $chances Corresponding reroll chances
+     * @return int Reroll chance (0-100)
+     */
+    private function getRerollChanceForBalance(float $balance, array $thresholds, array $chances): int
+    {
+        // Sort thresholds in descending order to check from highest to lowest
+        $sortedThresholds = $thresholds;
+        arsort($sortedThresholds);
+
+        $chance = 0; // Default: no reroll chance for lowest balance category
+        // Check each threshold from highest to lowest
+        foreach ($sortedThresholds as $index => $threshold) {
+            if ($balance >= $threshold && isset($chances[$index])) {
+                $chance = (int)$chances[$index];
+                break;
+            }
+        }
+
+        return $chance;
     }
 
     /**
@@ -125,7 +239,7 @@ readonly class DefaultGameService implements GameServiceInterface
         $session->isActive = false;
         $session->lastActivity = new DateTimeImmutable();
         
-        // Refresh session in storage.
+        // Update session in repository
         $this->repository->updateSession($session);
 
         // Create cashout result
@@ -150,7 +264,7 @@ readonly class DefaultGameService implements GameServiceInterface
     }
 
     /**
-     * Get active session by its ID, or throw an exception.
+     * Get active session by ID.
      *
      * @param string $sessionId Session ID
      * @return GameSessionDTO Active session
@@ -167,7 +281,7 @@ readonly class DefaultGameService implements GameServiceInterface
 
         // Check if session is closed
         if (!$session->isActive) {
-            $this->logger->warning('Session is already closed', ['sessionId' => $sessionId]);
+            $this->logger->warning('Session is closed', ['sessionId' => $sessionId]);
             throw new InvalidArgumentException("Session with ID {$sessionId} is already closed");
         }
 

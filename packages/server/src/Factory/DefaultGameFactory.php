@@ -23,19 +23,25 @@ readonly class DefaultGameFactory implements GameFactoryInterface
      * @param int $rowsCount Number of rows in the game
      * @param float $minBet Minimum allowed bet amount
      * @param float $maxBet Maximum allowed bet amount
+     * @param array|null $symbolsSettings Settings for game symbols from environment
+     * @param float $initialCredits Initial credits for new sessions
      */
     public function __construct(
         private LoggerInterface $logger,
         private int             $reelsCount,
         private int             $rowsCount,
         private float           $minBet,
-        private float           $maxBet
+        private float           $maxBet,
+        private ?array          $symbolsSettings = null,
+        private float           $initialCredits = 10.0
     ) {
         $this->logger->info('DefaultGameFactory initialized with configuration', [
             'reelsCount' => $this->reelsCount,
             'rowsCount' => $this->rowsCount,
             'minBet' => $this->minBet,
-            'maxBet' => $this->maxBet
+            'maxBet' => $this->maxBet,
+            'initialCredits' => $this->initialCredits,
+            'hasSymbolsSettings' => $this->symbolsSettings !== null
         ]);
     }
 
@@ -46,20 +52,62 @@ readonly class DefaultGameFactory implements GameFactoryInterface
     {
         $this->logger->info('Creating game configuration');
 
+        // Generate cards data from symbols settings or use defaults
+        $cardsData = $this->getCardsData();
+
         return new GameConfigDTO(
-            // Table of symbols and their payouts (symbol => coefficient)
-            [
-                'Cherry' => 10,
-                'Lemon' => 20,
-                'Orange' => 30,
-                'Watermelon' => 40
-            ],
+            $cardsData,
             $this->reelsCount,
             $this->rowsCount,
             $this->minBet,
             $this->maxBet,
             []
         );
+    }
+
+    /**
+     * Get cards data from symbols settings or use defaults.
+     *
+     * @return array<string, float> Table of symbols and their payouts
+     */
+    private function getCardsData(): array
+    {
+        $cardsData = [];
+        // If we have symbol settings from environment, use them
+        if ($this->symbolsSettings !== null 
+            && isset($this->symbolsSettings['names']) 
+            && isset($this->symbolsSettings['values'])
+            && is_array($this->symbolsSettings['names'])
+            && is_array($this->symbolsSettings['values'])
+        ) {
+            $names = $this->symbolsSettings['names'];
+            $values = $this->symbolsSettings['values'];
+            
+            // Create mapping of symbol names to values
+            foreach ($names as $index => $name) {
+                if (isset($values[$index])) {
+                    $cardsData[$name] = (float)$values[$index];
+                }
+            }
+            
+            if (!empty($cardsData)) {
+                $this->logger->info('Using custom symbols configuration', [
+                    'symbols' => array_keys($cardsData)
+                ]);
+            }
+        }
+        if ($cardsData === []) {
+            // Fallback to default values
+            $this->logger->info('Using default symbols configuration');
+            $cardsData = [
+                'Cherry' => 10,
+                'Lemon' => 20,
+                'Orange' => 30,
+                'Watermelon' => 40
+            ];
+        }
+        
+        return $cardsData;
     }
 
     /**
@@ -103,6 +151,7 @@ readonly class DefaultGameFactory implements GameFactoryInterface
     {
         $sessionId = uniqid('session_', true);
         $this->logger->info('Created new session ID', ['sessionId' => $sessionId]);
+
         return $sessionId;
     }
 
