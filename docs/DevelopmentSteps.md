@@ -27,3 +27,13 @@
 - Implemented autonomy mode:
     - implemented a random number generator for the result of the roll
 
+## Server-side
+- Implemented using of Swagger OpenApi for API documentation
+- Implemented API endpoints:
+    - GET /api/game/config
+    - POST /api/game/roll
+    - POST /api/game/cashout
+    - POST /api/game/session
+- Implemented DTO classes
+- Implemented Interfaces (Factory, Repository, Service)
+
