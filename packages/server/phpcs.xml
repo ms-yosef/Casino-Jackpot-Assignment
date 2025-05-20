@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<ruleset name="Casino Jackpot Coding Standard">
+    <description>Coding standard for Casino Jackpot Slot Machine</description>
+
+    <!-- Scan these directories -->
+    <file>src</file>
+    <file>tests</file>
+
+    <!-- Exclude vendor directory -->
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+
+    <!-- Use PSR-12 as the base standard -->
+    <rule ref="PSR12"/>
+
+    <!-- Show progress -->
+    <arg value="p"/>
+
+    <!-- Show colors in console -->
+    <arg name="colors"/>
+
+    <!-- Show sniff codes in all reports -->
+    <arg value="s"/>
+
+    <!-- Use tabs instead of spaces -->
+    <rule ref="Generic.WhiteSpace.ScopeIndent">
+        <properties>
+            <property name="indent" value="4"/>
+        </properties>
+    </rule>
+</ruleset>

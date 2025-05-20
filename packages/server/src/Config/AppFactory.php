@@ -44,6 +44,6 @@ class AppFactory
 
     private function configureRoutes(App $app): void
     {
-        new Routes($app)->register();
+        (new Routes($app))->register();
     }
 }
