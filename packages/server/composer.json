@@ -42,7 +42,7 @@
   },
   "scripts": {
     "test": "codecept run",
-    "test:unit": "codecept run unit",
+    "test:unit": "codecept run Unit",
     "test:functional": "codecept run functional",
     "test:integration": "codecept run integration",
     "cs:check": "phpcs",
