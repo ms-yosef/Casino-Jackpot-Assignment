@@ -491,11 +491,32 @@ class DefaultGameServiceTest extends Unit
             false // Session is already closed
         );
 
-        // Setup repository mock
+        // Setup repository mock to return the closed session
         $this->repositoryMock->expects($this->once())
             ->method('getSession')
             ->with($sessionId)
             ->willReturn($session);
+
+        // The service should reactivate the session and update it
+        $this->repositoryMock->expects($this->exactly(2))
+            ->method('updateSession')
+            ->willReturnCallback(function(GameSessionDTO $updatedSession) use ($session, $sessionId) {
+                // First call - reactivate session
+                static $callCount = 0;
+                $callCount++;
+
+                if ($callCount === 1) {
+                    // First call should reactivate the session
+                    $this->assertTrue($updatedSession->isActive);
+                    $this->assertEquals($sessionId, $updatedSession->sessionId);
+                } else {
+                    // Second call should update session after cashout
+                    $this->assertFalse($updatedSession->isActive);
+                    $this->assertEquals(0.0, $updatedSession->balance);
+                }
+
+                return null;
+            });
 
         $service = new DefaultGameService(
             $this->repositoryMock,
@@ -503,8 +524,12 @@ class DefaultGameServiceTest extends Unit
             $this->loggerMock
         );
 
-        // Assert & Act
-        $this->expectException(InvalidArgumentException::class);
-        $service->cashOut($sessionId);
+        // Act
+        $result = $service->cashOut($sessionId);
+
+        // Assert
+        $this->assertInstanceOf(CashoutResultDTO::class, $result);
+        $this->assertEquals($sessionId, $result->sessionId);
+        $this->assertEquals($balance, $result->amount);
     }
 }

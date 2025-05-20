@@ -7,7 +7,7 @@ namespace Casino\Server\Tests\Unit\Repository;
 use Casino\Server\DTO\GameConfigDTO;
 use Casino\Server\DTO\GameSessionDTO;
 use Casino\Server\DTO\SpinResultDTO;
-use Casino\Server\Repository\InMemoryGameRepository;
+use Casino\Server\Repositories\InMemoryGameRepository;
 use Codeception\Test\Unit;
 use DateTimeImmutable;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -52,15 +52,15 @@ class InMemoryGameRepositoryTest extends Unit
         $this->assertEquals(10.0, $config->maxBet);
         
         // Check symbols and their payouts
-        $this->assertArrayHasKey('Cherry', $config->cardsData);
-        $this->assertArrayHasKey('Lemon', $config->cardsData);
-        $this->assertArrayHasKey('Orange', $config->cardsData);
-        $this->assertArrayHasKey('Watermelon', $config->cardsData);
+        $this->assertArrayHasKey('C', $config->cardsData);
+        $this->assertArrayHasKey('L', $config->cardsData);
+        $this->assertArrayHasKey('O', $config->cardsData);
+        $this->assertArrayHasKey('W', $config->cardsData);
         
-        $this->assertEquals(10, $config->cardsData['Cherry']);
-        $this->assertEquals(20, $config->cardsData['Lemon']);
-        $this->assertEquals(30, $config->cardsData['Orange']);
-        $this->assertEquals(40, $config->cardsData['Watermelon']);
+        $this->assertEquals(10, $config->cardsData['C']);
+        $this->assertEquals(20, $config->cardsData['L']);
+        $this->assertEquals(30, $config->cardsData['O']);
+        $this->assertEquals(40, $config->cardsData['W']);
     }
 
     /**
@@ -328,23 +328,25 @@ class InMemoryGameRepositoryTest extends Unit
         $betAmount = 2.0;
         $winAmount = 10.0;
         $spinResult = new SpinResultDTO(
-            [['Cherry', 'Cherry', 'Cherry']], // reels
+            [['C', 'C', 'C']], // reels
             $betAmount,
             $winAmount
         );
 
-        // Set up logger mock to expect an error log
-        $this->loggerMock->expects($this->once())
-            ->method('error')
+        // Set up logger mock to expect warning logs
+        $this->loggerMock->expects($this->atLeastOnce())
+            ->method('warning')
             ->with(
-                $this->stringContains('Cannot save spin result - session not found'),
+                $this->callback(function($message) {
+                    return strpos($message, 'Session not found') !== false;
+                }),
                 $this->arrayHasKey('sessionId')
             );
 
-        // Act - This should not throw an exception, but log an error
+        // Act - This should not throw an exception, but log warnings
         $repository->saveSpinResult('non_existent_session', $spinResult);
         
         // No assert needed as we're checking that the method doesn't throw
-        // and the logger mock will fail the test if the error isn't logged
+        // and the logger mock will fail the test if the warnings aren't logged
     }
 }

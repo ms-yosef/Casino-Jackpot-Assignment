@@ -6,7 +6,7 @@ namespace Casino\Server\Tests\Unit\Factory;
 
 use Casino\Server\DTO\GameConfigDTO;
 use Casino\Server\DTO\SpinResultDTO;
-use Casino\Server\Factory\DefaultGameFactory;
+use Casino\Server\Factories\DefaultGameFactory;
 use Codeception\Test\Unit;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
