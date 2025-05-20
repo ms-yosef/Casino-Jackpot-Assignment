@@ -2,12 +2,14 @@
 
 declare(strict_types=1);
 
-use Casino\Server\Factory\DefaultGameFactory;
+use Casino\Server\Factories\DefaultGameFactory;
 use Casino\Server\Interfaces\Factory\GameFactoryInterface;
 use Casino\Server\Interfaces\Repository\GameRepositoryInterface;
 use Casino\Server\Interfaces\Service\GameServiceInterface;
-use Casino\Server\Repository\InMemoryGameRepository;
+use Casino\Server\Repositories\MySQLGameRepository;
 use Casino\Server\Services\DefaultGameService;
+use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\DriverManager;
 use Monolog\Handler\RotatingFileHandler;
 use Monolog\Level;
 use Psr\Container\ContainerInterface;
@@ -33,6 +35,39 @@ return [
         $logger->pushHandler(new StreamHandler('php://stdout', Level::Debug));
         
         return $logger;
+    },
+
+    // Database connection
+    Connection::class => function (ContainerInterface $container) {
+        $logger = $container->get(LoggerInterface::class);
+        
+        try {
+            $connectionParams = [
+                'dbname' => $_ENV['DB_DATABASE'] ?? 'casino_jackpot',
+                'user' => $_ENV['DB_USERNAME'] ?? 'root',
+                'password' => $_ENV['DB_PASSWORD'] ?? '',
+                'host' => $_ENV['DB_HOST'] ?? 'localhost',
+                'port' => $_ENV['DB_PORT'] ?? 3306,
+                'driver' => 'pdo_mysql',
+                'charset' => 'utf8mb4',
+            ];
+            
+            $connection = DriverManager::getConnection($connectionParams);
+            
+            // Test the connection
+            $connection->connect();
+            $logger->info('Database connection established successfully');
+            
+            return $connection;
+        } catch (\Exception $e) {
+            $logger->error('Failed to establish database connection', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            // If we can't connect to the database, we'll throw an exception
+            throw new \RuntimeException('Failed to establish database connection: ' . $e->getMessage(), 0, $e);
+        }
     },
 
     // Application settings
@@ -70,13 +105,14 @@ return [
     // Game Repository
     GameRepositoryInterface::class => function (ContainerInterface $container) {
         $settings = $container->get('settings')['game'];
-        return new InMemoryGameRepository(
+        return new MySQLGameRepository(
             $container->get(LoggerInterface::class),
             $settings['reelsCount'],
             $settings['rowsCount'],
             $settings['minBet'],
             $settings['maxBet'],
-            $settings['initialCredits'] ?? 10.0
+            $settings['initialCredits'] ?? 10.0,
+            $container->get(Connection::class)
         );
     },
 

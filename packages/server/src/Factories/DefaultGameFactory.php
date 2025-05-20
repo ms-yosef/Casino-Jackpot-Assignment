@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Casino\Server\Factory;
+namespace Casino\Server\Factories;
 
 use Casino\Server\DTO\GameConfigDTO;
 use Casino\Server\DTO\SpinResultDTO;

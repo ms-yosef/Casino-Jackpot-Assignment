@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Casino\Server\Repository;
+namespace Casino\Server\Repositories;
 
 use Casino\Server\DTO\GameConfigDTO;
 use Casino\Server\DTO\GameSessionDTO;
@@ -16,17 +16,12 @@ use Psr\Log\LoggerInterface;
  * This implementation stores all data in memory during the request lifecycle.
  * Data is not persisted between requests.
  */
-class InMemoryGameRepository implements GameRepositoryInterface
+class InMemoryGameRepository extends AbstractGameRepository
 {
     /**
      * @var array<string, GameSessionDTO> In-memory storage for game sessions
      */
     private static array $sessions = [];
-
-    /**
-     * @var GameConfigDTO Game configuration
-     */
-    private GameConfigDTO $gameConfig;
 
     /**
      * @param LoggerInterface $logger Logger for operations logging
@@ -44,20 +39,12 @@ class InMemoryGameRepository implements GameRepositoryInterface
         private readonly float $maxBet,
         private readonly float $initialCredits = 10.0
     ) {
-        // Initialize game configuration with proper signature
-        $this->gameConfig = new GameConfigDTO(
-            // Table of symbols and their payouts (symbol => coefficient)
-            [
-                'Cherry' => 10,
-                'Lemon' => 20,
-                'Orange' => 30,
-                'Watermelon' => 40
-            ],
+        // Initialize game configuration using the parent method
+        $this->gameConfig = $this->createGameConfig(
             $this->reelsCount,
             $this->rowsCount,
             $this->minBet,
-            $this->maxBet,
-            []
+            $this->maxBet
         );
 
         $this->logger->info('InMemoryGameRepository initialized with configuration', [
@@ -81,40 +68,22 @@ class InMemoryGameRepository implements GameRepositoryInterface
     /**
      * {@inheritdoc}
      */
-    public function getSession(string $sessionId): ?GameSessionDTO
-    {
-        $res = null;
-        if (!isset(self::$sessions[$sessionId])) {
-            $this->logger->warning('Session not found', ['sessionId' => $sessionId]);
-        } else {
-            self::$sessions[$sessionId]->lastActivity = new \DateTimeImmutable();
-            $res = self::$sessions[$sessionId];
-            $this->logger->info('Retrieved session', ['sessionId' => $sessionId]);
-        }
-
-        return $res;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     public function createSession(float $initialBalance): GameSessionDTO
     {
-        // If initialBalance is not specified, use the default value from configuration
         if ($initialBalance <= 0) {
             $initialBalance = $this->initialCredits;
             $this->logger->info('Using default initial balance', ['initialBalance' => $initialBalance]);
         }
 
         $sessionId = uniqid('session_', true);
+        $now = new \DateTimeImmutable();
 
-        // Create a new session
         $session = new GameSessionDTO(
             $sessionId,
             $initialBalance,
             0.0,
             0.0,
-            new \DateTimeImmutable(),
+            $now,
             null,
             true
         );
@@ -132,8 +101,30 @@ class InMemoryGameRepository implements GameRepositoryInterface
     /**
      * {@inheritdoc}
      */
+    public function getSession(string $sessionId): ?GameSessionDTO
+    {
+        if (!isset(self::$sessions[$sessionId])) {
+            $this->logger->warning('Session not found', ['sessionId' => $sessionId]);
+            return null;
+        }
+
+        $session = self::$sessions[$sessionId];
+        $session->lastActivity = new \DateTimeImmutable();
+
+        $this->logger->info('Retrieved session', ['sessionId' => $sessionId]);
+        return $session;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function updateSession(GameSessionDTO $session): void
     {
+        if (!isset(self::$sessions[$session->sessionId])) {
+            $this->logger->warning('Session not found for update', ['sessionId' => $session->sessionId]);
+            return;
+        }
+
         self::$sessions[$session->sessionId] = $session;
 
         $this->logger->info('Updated session', [
@@ -150,7 +141,7 @@ class InMemoryGameRepository implements GameRepositoryInterface
         $session = $this->getSession($sessionId);
 
         if (!$session) {
-            $this->logger->warning('Session not found', ['sessionId' => $sessionId]);
+            $this->logger->warning('Session not found for saving spin result', ['sessionId' => $sessionId]);
             return;
         }
 
@@ -159,9 +150,9 @@ class InMemoryGameRepository implements GameRepositoryInterface
         $session->totalBet += $result->betAmount;
         $session->totalWin += $result->winAmount;
         $session->lastActivity = new \DateTimeImmutable();
-        
+
         $this->updateSession($session);
-        
+
         $this->logger->info('Saved spin result', [
             'sessionId' => $sessionId,
             'betAmount' => $result->betAmount,
