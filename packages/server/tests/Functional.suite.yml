@@ -2,11 +2,16 @@
 #
 # Suite for functional tests
 # Emulate web requests and make application process them
-# Include one of framework modules (Symfony, Yii2, Laravel, Phalcon5) to use it
-# Remove this suite if you don't use frameworks
 
 actor: FunctionalTester
 modules:
     enabled:
-        # add a framework module here
+        - REST:
+            url: http://localhost:8081/api
+            depends: PhpBrowser
+            part: Json
+        - PhpBrowser:
+            url: http://localhost:8081
+        - \Tests\Support\Helper\Functional
+        - Asserts
 step_decorators: ~

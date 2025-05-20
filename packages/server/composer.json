@@ -37,14 +37,14 @@
   },
   "autoload-dev": {
     "psr-4": {
-      "Casino\\Server\\Tests\\": "tests/"
+      "Tests\\": "tests/"
     }
   },
   "scripts": {
     "test": "codecept run",
     "test:unit": "codecept run Unit",
-    "test:functional": "codecept run functional",
-    "test:integration": "codecept run integration",
+    "test:functional": "codecept run Functional",
+    "test:integration": "codecept run Integration",
     "cs:check": "phpcs",
     "cs:fix": "phpcbf",
     "phpstan": "phpstan analyse src tests --level=5",
