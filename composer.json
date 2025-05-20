@@ -23,7 +23,8 @@
   ],
   "autoload": {
     "psr-4": {
-      "Casino\\Client\\": "packages/client/src/"
+      "Casino\\Client\\": "packages/client/src/",
+      "Casino\\Server\\": "packages/server/src/"
     }
   },
   "scripts": {
@@ -36,7 +37,7 @@
       "@phpstan"
     ],
     "phpstan": "phpstan analyse packages/client/src --level=5",
-    "serve-client": "php -S localhost:8080 -t packages/client/public",
+    "serve-client": "php -S localhost:8080 -t packages/client/src",
     "serve-server": "cd packages/server && composer serve"
   },
   "config": {

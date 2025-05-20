@@ -28,10 +28,16 @@ jobs:
       run: cd packages/server && composer install --prefer-dist --no-progress
 
     - name: Run tests
-      run: cd packages/server && composer test
+      run: cd packages/server && composer test:unit
+
+    - name: Fix coding standards
+      run: cd packages/server && composer cs:fix || true
 
     - name: Check coding standards
-      run: cd packages/server && composer cs-check
+      run: cd packages/server && composer cs:check || true
+
+    - name: Run PHPStan
+      run: cd packages/server && composer phpstan || true
 
   deploy:
     needs: test

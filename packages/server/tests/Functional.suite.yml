@@ -1,0 +1,17 @@
+# Codeception Test Suite Configuration
+#
+# Suite for functional tests
+# Emulate web requests and make application process them
+
+actor: FunctionalTester
+modules:
+    enabled:
+        - REST:
+            url: http://localhost:8081/api
+            depends: PhpBrowser
+            part: Json
+        - PhpBrowser:
+            url: http://localhost:8081
+        - \Tests\Support\Helper\Functional
+        - Asserts
+step_decorators: ~
