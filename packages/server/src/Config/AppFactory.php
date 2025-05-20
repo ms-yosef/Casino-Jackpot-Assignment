@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Casino\Server\Config;
 
 use Casino\Server\Routes;
+use Casino\Server\Middleware\CorsMiddleware;
 use Slim\Factory\AppFactory as SlimAppFactory;
 use Slim\App;
 
@@ -25,6 +26,14 @@ class AppFactory
 
     private function configureMiddleware(App $app): void
     {
+        // Add CORS middleware
+        $app->add(new CorsMiddleware());
+
+        // Add OPTIONS route for CORS preflight requests
+        $app->options('/{routes:.+}', function ($request, $response) {
+            return $response;
+        });
+
         $app->addErrorMiddleware(
             $_ENV['APP_DEBUG'] ?? false,
             true,
