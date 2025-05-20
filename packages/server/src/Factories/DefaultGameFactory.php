@@ -120,7 +120,7 @@ readonly class DefaultGameFactory implements GameFactoryInterface
         
         // Generate random matrix of symbols
         $matrix = $this->generateRandomMatrix($config);
-        
+        $this->logger->debug('Generated random matrix', ['matrix' => $matrix]);
         // Calculate win amount based on the matrix and bet amount
         $winData = $this->calculateWin($matrix, $betAmount, $config);
         $winAmount = $winData['totalWin'];
@@ -197,7 +197,7 @@ readonly class DefaultGameFactory implements GameFactoryInterface
         foreach ($matrix as $row => $rowValue) {
             $rowSymbols = $rowValue;
             $winData = $this->checkLineWin($rowSymbols, $betAmount, $config);
-            
+            $this->logger->debug('calculateWin', ['row' => $row, 'rowSymbols' => $rowSymbols, 'winData' => $winData]);
             if ($winData['win'] > 0) {
                 $totalWin += $winData['win'];
                 $winLines[] = [
@@ -240,12 +240,28 @@ readonly class DefaultGameFactory implements GameFactoryInterface
         // Win if all symbols in the line are the same.
         if (count(array_unique($line)) === 1) {
             $symbol = $line[0];
-            $winAmount = $config->cardsData[$symbol] * $betAmount;
             
-            return [
-                'win' => $winAmount,
-                'combination' => $symbol
-            ];
+            // Debug logging
+            $this->logger->info('Checking win for symbol', [
+                'symbol' => $symbol,
+                'availableSymbols' => array_keys($config->cardsData),
+                'symbolExists' => isset($config->cardsData[$symbol])
+            ]);
+            
+            // Make sure the symbol exists in cardsData
+            if (isset($config->cardsData[$symbol])) {
+                $winAmount = $config->cardsData[$symbol] * $betAmount;
+                
+                return [
+                    'win' => $winAmount,
+                    'combination' => $symbol
+                ];
+            }
+
+            $this->logger->warning('Symbol not found in cardsData', [
+                'symbol' => $symbol,
+                'availableSymbols' => array_keys($config->cardsData)
+            ]);
         }
         
         // No win

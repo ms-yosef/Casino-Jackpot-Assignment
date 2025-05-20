@@ -34,9 +34,7 @@ class AppFactory
             return $response;
         });
 
-        $displayErrorDetails = isset($_ENV['APP_DEBUG']) ?
-            filter_var($_ENV['APP_DEBUG'], FILTER_VALIDATE_BOOLEAN) :
-            false;
+        $displayErrorDetails = filter_var(getenv('APP_DEBUG') ?: false, FILTER_VALIDATE_BOOLEAN);
         $app->addErrorMiddleware(
             $displayErrorDetails,
             true,

@@ -113,7 +113,7 @@ $(document).ready(function() {
     }
 
     // Function to display results sequentially
-    function displayResults(results) {
+    function displayResults(results, updateBalanceLocally = false, serverWinInfo = null) {
         // Display first result after 1 second
         setTimeout(function() {
             $('#slot-1').removeClass('spinning').text(results[0]);
@@ -126,19 +126,30 @@ $(document).ready(function() {
                 setTimeout(function() {
                     $('#slot-3').removeClass('spinning').text(results[2]);
 
-                    // Check for win
-                    const result = checkWin(results);
-                    if (result.win > 0) {
-                        balance += result.win;
+                    // Use server win info if provided, otherwise check locally
+                    let result;
+                    if (serverWinInfo !== null) {
+                        // Use server's win information
+                        result = serverWinInfo;
+                    } else {
+                        // Check for win locally (for demo mode)
+                        result = checkWin(results);
+                        
+                        // Only update balance locally if specified
+                        if (updateBalanceLocally && result.win > 0) {
+                            balance += result.win;
+                            updateDisplay();
+                        }
+                    }
 
-                        // Highlight winning symbols
+                    // Highlight winning symbols if there's a win
+                    if (result.win > 0) {
                         $slotItems.addClass('win');
                         setTimeout(function() {
                             $slotItems.removeClass('win');
                         }, 3000);
                     }
 
-                    updateDisplay();
                     showResult(result);
 
                     isSpinning = false;
@@ -202,13 +213,7 @@ $(document).ready(function() {
                 const result = generateLocalSpinResult();
                 
                 // Display result
-                displayResults(result.reels.map(reel => reel[1]));
-                
-                // Update balance
-                if (result.win > 0) {
-                    balance += result.win;
-                    updateDisplay();
-                }
+                displayResults(result.reels.map(reel => reel[1]), true);
                 
                 // Re-enable spin button
                 isSpinning = false;
@@ -244,16 +249,28 @@ $(document).ready(function() {
                     console.log('Server response:', response);
 
                     if (response.success && response.data) {
-                        // Extract the first symbol from each reel
-                        const results = response.data.reels.map(reel => reel[0]);
+                        // Extract symbols from the first row of the matrix
+                        // Server sends data in format [["L", "L", "L"]] (rows-based)
+                        const results = response.data.reels[0] || [];
 
-                        // Update balance with win amount
-                        if (response.data.winAmount > 0) {
-                            balance += response.data.winAmount;
+                        // Refresh balance from Server's response
+                        if (response.currentBalance !== undefined) {
+                            balance = response.currentBalance;
+                            updateDisplay();
                         }
 
-                        // Display results
-                        displayResults(results);
+                        // Create win info object based on server data
+                        const serverWinInfo = {
+                            win: response.data.winAmount || 0,
+                            message: response.data.winAmount > 0 
+                                ? `Congratulations! You won ${response.data.winAmount} credits!` 
+                                : 'Sorry, you lost. Try again!',
+                            type: response.data.winAmount > 0 ? 'success' : 'danger',
+                            isJackpot: false // Server would indicate if it's a jackpot
+                        };
+
+                        // Display results with server's win information
+                        displayResults(results, false, serverWinInfo);
                     } else {
                         console.error('Invalid spin response format:', response);
                         // Simulate results for demo
@@ -262,7 +279,7 @@ $(document).ready(function() {
                             getRandomSymbol(),
                             getRandomSymbol()
                         ];
-                        displayResults(simulatedResults);
+                        displayResults(simulatedResults, true);
                     }
                 },
                 error: function(xhr, status, error) {
@@ -273,7 +290,7 @@ $(document).ready(function() {
                         getRandomSymbol(),
                         getRandomSymbol()
                     ];
-                    displayResults(simulatedResults);
+                    displayResults(simulatedResults, true);
                 }
             });
         });

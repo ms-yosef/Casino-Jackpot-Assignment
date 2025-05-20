@@ -46,6 +46,7 @@
         - If the roll is true, then the server re-rolls and communicates the new result back.
     - If the user has above 60 credits, the server acts the same, but the chance of re-rolling the round increases to 60%.
         - If the roll is true, then the server re-rolls and communicates the new result back.
+- Created MySQLGameRepository, app switched to store sessions in DB
 
 ## Testing
 - Created Unit-tests for:

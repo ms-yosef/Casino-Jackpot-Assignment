@@ -43,11 +43,11 @@ return [
         
         try {
             $connectionParams = [
-                'dbname' => $_ENV['DB_DATABASE'] ?? 'casino_jackpot',
-                'user' => $_ENV['DB_USERNAME'] ?? 'root',
-                'password' => $_ENV['DB_PASSWORD'] ?? '',
-                'host' => $_ENV['DB_HOST'] ?? 'localhost',
-                'port' => $_ENV['DB_PORT'] ?? 3306,
+                'dbname' => getenv('DB_DATABASE') ?: 'casino_jackpot',
+                'user' => getenv('DB_USERNAME') ?: 'casino_user',
+                'password' => getenv('DB_PASSWORD') ?: '$haHaR!',
+                'host' => getenv('DB_HOST') ?: 'localhost',
+                'port' => getenv('DB_PORT') ?: 3306,
                 'driver' => 'pdo_mysql',
                 'charset' => 'utf8mb4',
             ];
@@ -72,19 +72,19 @@ return [
 
     // Application settings
     'settings' => [
-        'displayErrorDetails' => $_ENV['APP_DEBUG'] ?? false,
+        'displayErrorDetails' => filter_var(getenv('APP_DEBUG') ?: false, FILTER_VALIDATE_BOOLEAN),
         'logErrors' => true,
         'logErrorDetails' => true,
         'game' => [
-            'reelsCount' => $_ENV['GAME_REELS_COUNT'] ?? 3,
-            'rowsCount' => $_ENV['GAME_ROWS_COUNT'] ?? 1,
-            'minBet' => (float)($_ENV['GAME_MIN_BET'] ?? 1.0),
-            'maxBet' => (float)($_ENV['GAME_MAX_BET'] ?? 5.0),
-            'initialCredits' => (float)($_ENV['GAME_INITIAL_CREDITS'] ?? 10.0),
-            'spinCost' => (float)($_ENV['GAME_SPIN_COST'] ?? 1.0),
-            'symbolsSettings' => json_decode($_ENV['GAME_SYMBOLS_SETTINGS'] ?? '{}', true),
-            'cheatEnabled' => (bool)($_ENV['GAME_CHEAT_ENABLED'] ?? false),
-            'cheatConfig' => json_decode($_ENV['GAME_CHEAT_CONFIG'] ?? '{}', true),
+            'reelsCount' => getenv('GAME_REELS_COUNT') ?: 3,
+            'rowsCount' => getenv('GAME_ROWS_COUNT') ?: 1,
+            'minBet' => (float)(getenv('GAME_MIN_BET') ?: 1.0),
+            'maxBet' => (float)(getenv('GAME_MAX_BET') ?: 5.0),
+            'initialCredits' => (float)(getenv('GAME_INITIAL_CREDITS') ?: 10.0),
+            'spinCost' => (float)(getenv('GAME_SPIN_COST') ?: 1.0),
+            'symbolsSettings' => json_decode(getenv('GAME_SYMBOLS_SETTINGS') ?: '{}', true),
+            'cheatEnabled' => filter_var(getenv('GAME_CHEAT_ENABLED') ?: false, FILTER_VALIDATE_BOOLEAN),
+            'cheatConfig' => json_decode(getenv('GAME_CHEAT_CONFIG') ?: '{}', true),
         ],
     ],
 

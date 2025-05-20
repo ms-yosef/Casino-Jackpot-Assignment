@@ -43,4 +43,12 @@ interface GameServiceInterface
      * @throws \InvalidArgumentException If the session not found
      */
     public function cashOut(string $sessionId): CashoutResultDTO;
+
+    /**
+     * Gets session information by ID.
+     *
+     * @param string $sessionId session ID
+     * @throws \InvalidArgumentException If the session not found
+     */
+    public function getSession(string $sessionId): GameSessionDTO;
 }

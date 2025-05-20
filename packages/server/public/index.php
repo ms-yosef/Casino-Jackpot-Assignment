@@ -9,24 +9,28 @@
 declare(strict_types=1);
 
 use Casino\Server\Config\AppFactory;
+use Dotenv\Dotenv;
 
 require_once __DIR__ . '/../vendor/autoload.php';
-
-$dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
-$dotenv->load();
 
 // Set the absolute path to the project root
 define('ROOT_DIR', dirname(__DIR__));
 
-/*
-// Basic response for testing
-header('Content-Type: application/json');
-echo json_encode([
-    'status' => 'success',
-    'message' => 'Casino Jackpot Slot Machine API',
-    'documentation' => '/swagger/'
-]);
-*/
+// Load environment variables
+try {
+    $dotenv = Dotenv::createImmutable(ROOT_DIR);
+    $dotenv->load();
+    
+    // Make sure variables are also available through getenv()
+    foreach ($_ENV as $key => $value) {
+        putenv("$key=$value");
+    }
+    
+    // Log successful loading
+    error_log('Environment variables loaded successfully');
+} catch (\Exception $e) {
+    error_log('Error loading environment variables: ' . $e->getMessage());
+}
 
 $app = (new AppFactory())->createApp();
 $app->run();

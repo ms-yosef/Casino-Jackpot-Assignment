@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace Casino\Server\Controllers;
 
 use Casino\Server\DTO\SpinRequestDTO;
+use Casino\Server\DTO\SpinResultDTO;
 use Casino\Server\Interfaces\Service\GameServiceInterface;
+use Exception;
+use JsonException;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
@@ -41,8 +44,8 @@ class GameController
         $responseData = [
             'success' => true,
             'data' => [
-                'symbols' => $config->symbols,
-                'payouts' => $config->payouts,
+                'symbols' => $config->cardsData,
+                'payouts' => $config->cardsData,
                 'reelsCount' => $config->reelsCount,
                 'rowsCount' => $config->rowsCount,
                 'minBet' => $config->minBet,
@@ -117,93 +120,78 @@ class GameController
      * @param Request $request HTTP request
      * @param Response $response HTTP response
      * @return Response HTTP response with spin result
+     * @throws JsonException
      */
     public function processSpin(Request $request, Response $response): Response
     {
-        $data = json_decode($request->getBody()->getContents(), true);
+        $body = $request->getBody()->getContents();
+        $data = json_decode($body, true);
         
-        if (!isset($data['sessionId']) || !is_string($data['sessionId'])) {
-            $this->logger->warning('Invalid sessionId parameter', ['data' => $data]);
-            
-            $responseData = [
+        $this->logger->debug('GameController::processSpin', [
+            'data' => $data,
+            'request' => ['Slim\\Psr7\\Request' => []]
+        ]);
+
+        // Parse request data
+        $sessionId = $data['sessionId'] ?? null;
+        $betAmount = (float)($data['betAmount'] ?? 1.0);
+        $linesCount = $data['linesCount'] ?? null;
+
+        if (!$sessionId) {
+            return $this->jsonResponse($response, [
                 'success' => false,
-                'error' => 'Invalid sessionId parameter'
-            ];
-            
-            $response->getBody()->write(json_encode($responseData));
-            return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+                'message' => 'Session ID is required'
+            ], 400);
         }
-        
-        if (!isset($data['betAmount']) || !is_numeric($data['betAmount']) || $data['betAmount'] <= 0) {
-            $this->logger->warning('Invalid betAmount parameter', ['data' => $data]);
-            
-            $responseData = [
-                'success' => false,
-                'error' => 'Invalid betAmount parameter. Must be a positive number.'
-            ];
-            
-            $response->getBody()->write(json_encode($responseData));
-            return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
-        }
-        
-        $sessionId = $data['sessionId'];
-        $betAmount = (float) $data['betAmount'];
-        $linesCount = isset($data['linesCount']) && is_numeric($data['linesCount']) ? (int) $data['linesCount'] : null;
-        
+
+        $this->logger->info('Processing spin request', [
+            'sessionId' => $sessionId,
+            'betAmount' => $betAmount
+        ]);
+
         try {
+            // Get session
+            $session = $this->gameService->getSession($sessionId);
+
+            // Get game configuration
+            $config = $this->gameService->getGameConfig();
+
+            // Generate spin result
             $spinRequest = new SpinRequestDTO($betAmount, $linesCount);
             $result = $this->gameService->processSpin($sessionId, $spinRequest);
-            
-            $responseData = [
-                'success' => true,
-                'data' => [
-                    'reels' => $result->reels,
-                    'betAmount' => $result->betAmount,
-                    'winAmount' => $result->winAmount,
-                    'isWin' => $result->isWin(),
-                    'multiplier' => $result->getMultiplier(),
-                    'winningLines' => $result->winningLines,
-                    'features' => $result->features,
-                    'timestamp' => $result->timestamp->format('c'),
-                ]
-            ];
-            
+
+            $this->logger->debug('SpinRequestDTO result', [
+                'result' => ['Casino\\Server\\DTO\\SpinResultDTO' => $result],
+                'betAmount' => $betAmount,
+                'linesCount' => $linesCount
+            ]);
+
+            // Get updated session
+            $updatedSession = $this->gameService->getSession($sessionId);
+
             $this->logger->info('Processed spin', [
                 'sessionId' => $sessionId,
                 'betAmount' => $betAmount,
-                'winAmount' => $result->winAmount
+                'winAmount' => $result->winAmount,
+                'isWin' => $result->isWin()
             ]);
-            
-            $response->getBody()->write(json_encode($responseData));
-            return $response->withHeader('Content-Type', 'application/json');
-        } catch (\InvalidArgumentException $e) {
-            $this->logger->warning('Error processing spin', [
-                'sessionId' => $sessionId,
-                'error' => $e->getMessage()
+
+            return $this->jsonResponse($response, [
+                'success' => true,
+                'data' => $result,
+                'currentBalance' => $updatedSession->balance
             ]);
-            
-            $responseData = [
-                'success' => false,
-                'error' => $e->getMessage()
-            ];
-            
-            $status = str_contains($e->getMessage(), 'not found') ? 404 : 400;
-            
-            $response->getBody()->write(json_encode($responseData));
-            return $response->withStatus($status)->withHeader('Content-Type', 'application/json');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->logger->error('Error processing spin', [
                 'sessionId' => $sessionId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
-            
-            $responseData = [
+
+            return $this->jsonResponse($response, [
                 'success' => false,
-                'error' => 'Failed to process spin: ' . $e->getMessage()
-            ];
-            
-            $response->getBody()->write(json_encode($responseData));
-            return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+                'message' => 'Error processing spin: ' . $e->getMessage()
+            ], 500);
         }
     }
 
@@ -285,5 +273,11 @@ class GameController
             $response->getBody()->write(json_encode($responseData));
             return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
         }
+    }
+
+    private function jsonResponse(Response $response, array $data, int $status = 200): Response
+    {
+        $response->getBody()->write(json_encode($data));
+        return $response->withStatus($status)->withHeader('Content-Type', 'application/json');
     }
 }

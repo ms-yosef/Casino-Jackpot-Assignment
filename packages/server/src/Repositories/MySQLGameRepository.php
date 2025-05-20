@@ -8,9 +8,11 @@ use Casino\Server\DTO\GameConfigDTO;
 use Casino\Server\DTO\GameSessionDTO;
 use Casino\Server\DTO\SpinResultDTO;
 use Casino\Server\Interfaces\Repository\GameRepositoryInterface;
+use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception;
 use Psr\Log\LoggerInterface;
+use RuntimeException;
 
 /**
  * MySQL implementation of the game repository.
@@ -81,7 +83,7 @@ class MySQLGameRepository extends AbstractGameRepository
                         total_win DECIMAL(10, 2) NOT NULL,
                         created_at DATETIME NOT NULL,
                         last_activity DATETIME NULL,
-                        active TINYINT(1) NOT NULL DEFAULT 1
+                        is_active TINYINT(1) NOT NULL DEFAULT 1
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                 ");
 
@@ -92,7 +94,7 @@ class MySQLGameRepository extends AbstractGameRepository
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            throw new \RuntimeException('Failed to initialize database: ' . $e->getMessage(), 0, $e);
+            throw new RuntimeException('Failed to initialize database: ' . $e->getMessage(), 0, $e);
         }
     }
 
@@ -101,7 +103,8 @@ class MySQLGameRepository extends AbstractGameRepository
      */
     public function getGameConfig(): GameConfigDTO
     {
-        $this->logger->info('Getting game configuration');
+        //$this->logger->info('Getting game configuration');
+        $this->logger->debug('Getting game configuration', ['gameConfig' => $this->gameConfig]);
         return $this->gameConfig;
     }
 
@@ -128,13 +131,13 @@ class MySQLGameRepository extends AbstractGameRepository
             );
 
             $session = new GameSessionDTO(
-                $data['session_id'],
+                $sessionId,
                 (float) $data['balance'],
                 (float) $data['total_bet'],
                 (float) $data['total_win'],
-                new \DateTimeImmutable($data['created_at']),
-                $data['last_activity'] ? new \DateTimeImmutable($data['last_activity']) : null,
-                (bool) $data['active']
+                new DateTimeImmutable($data['created_at']),
+                $data['last_activity'] ? new DateTimeImmutable($data['last_activity']) : null,
+                (bool) $data['is_active']
             );
 
             $this->logger->info('Retrieved session', ['sessionId' => $sessionId]);
@@ -159,11 +162,11 @@ class MySQLGameRepository extends AbstractGameRepository
         }
 
         $sessionId = uniqid('session_', true);
-        $now = new \DateTimeImmutable();
+        $now = new DateTimeImmutable();
 
         try {
             $this->connection->executeStatement(
-                'INSERT INTO game_sessions (session_id, balance, total_bet, total_win, created_at, active) 
+                'INSERT INTO game_sessions (session_id, balance, total_bet, total_win, created_at, is_active) 
                  VALUES (?, ?, ?, ?, ?, ?)',
                 [
                     $sessionId,
@@ -195,7 +198,7 @@ class MySQLGameRepository extends AbstractGameRepository
             $this->logger->error('Failed to create session', [
                 'error' => $e->getMessage()
             ]);
-            throw new \RuntimeException('Failed to create session: ' . $e->getMessage(), 0, $e);
+            throw new RuntimeException('Failed to create session: ' . $e->getMessage(), 0, $e);
         }
     }
 
@@ -206,29 +209,30 @@ class MySQLGameRepository extends AbstractGameRepository
     {
         try {
             $this->connection->executeStatement(
-                'UPDATE game_sessions 
-                 SET balance = ?, total_bet = ?, total_win = ?, last_activity = ?, active = ? 
-                 WHERE session_id = ?',
+                'UPDATE game_sessions SET balance = ?, total_bet = ?, total_win = ?, last_activity = ?, is_active = ? WHERE session_id = ?',
                 [
                     $session->balance,
                     $session->totalBet,
                     $session->totalWin,
-                    $session->lastActivity ? $session->lastActivity->format('Y-m-d H:i:s') : null,
-                    $session->active ? 1 : 0,
+                    $session->lastActivity?->format('Y-m-d H:i:s'),
+                    $session->isActive ? 1 : 0,
                     $session->sessionId
                 ]
             );
 
             $this->logger->info('Updated session', [
                 'sessionId' => $session->sessionId,
-                'balance' => $session->balance
+                'balance' => $session->balance,
+                'isActive' => $session->isActive
             ]);
         } catch (Exception $e) {
             $this->logger->error('Failed to update session', [
                 'sessionId' => $session->sessionId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
-            throw new \RuntimeException('Failed to update session: ' . $e->getMessage(), 0, $e);
+
+            throw new RuntimeException("Failed to update session: {$e->getMessage()}", 0, $e);
         }
     }
 
@@ -248,7 +252,7 @@ class MySQLGameRepository extends AbstractGameRepository
         $session->balance = $session->balance - $result->betAmount + $result->winAmount;
         $session->totalBet += $result->betAmount;
         $session->totalWin += $result->winAmount;
-        $session->lastActivity = new \DateTimeImmutable();
+        $session->lastActivity = new DateTimeImmutable();
 
         $this->updateSession($session);
 

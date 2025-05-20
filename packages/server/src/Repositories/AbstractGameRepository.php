@@ -35,15 +35,15 @@ abstract class AbstractGameRepository implements GameRepositoryInterface
     ): GameConfigDTO {
         // Parse symbols settings from environment or use defaults
         $symbolsSettings = [];
-        $envSymbols = json_decode($_ENV['GAME_SYMBOLS_SETTINGS'] ?? '{}', true);
+        $envSymbols = json_decode(getenv('GAME_SYMBOLS_SETTINGS') ?: '{}', true);
 
-        if (!empty($envSymbols) && isset($envSymbols['names']) && isset($envSymbols['values'])) {
-            $names = $envSymbols['names'];
+        if (!empty($envSymbols) && isset($envSymbols['chars']) && isset($envSymbols['values'])) {
+            $chars = $envSymbols['chars'];
             $values = $envSymbols['values'];
 
-            for ($i = 0, $iMax = count($names); $i < $iMax; $i++) {
+            for ($i = 0, $iMax = count($chars); $i < $iMax; $i++) {
                 if (isset($values[$i])) {
-                    $symbolsSettings[$names[$i]] = $values[$i];
+                    $symbolsSettings[$chars[$i]] = $values[$i];
                 }
             }
         }
@@ -51,10 +51,10 @@ abstract class AbstractGameRepository implements GameRepositoryInterface
         // Use default symbols if none were provided or parsing failed
         if (empty($symbolsSettings)) {
             $symbolsSettings = [
-                'Cherry' => 10,
-                'Lemon' => 20,
-                'Orange' => 30,
-                'Watermelon' => 40
+                'C' => 10, // Cherry
+                'L' => 20, // Lemon
+                'O' => 30, // Orange
+                'W' => 40  // Watermelon
             ];
         }
 

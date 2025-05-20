@@ -27,12 +27,12 @@ readonly class DefaultGameService implements GameServiceInterface
     /**
      * Default thresholds for balance categories (low, medium, high)
      */
-    private const DEFAULT_BALANCE_THRESHOLDS = [40, 60];
+    private const array DEFAULT_BALANCE_THRESHOLDS = [40, 60];
     
     /**
      * Default chances for rerolling winning combinations based on balance category
      */
-    private const DEFAULT_REROLL_CHANCES = [30, 60];
+    private const array DEFAULT_REROLL_CHANCES = [30, 60];
 
     /**
      * @param GameRepositoryInterface $repository Game repository for data storage
@@ -128,11 +128,19 @@ readonly class DefaultGameService implements GameServiceInterface
         // Save spin result
         $this->repository->saveSpinResult($sessionId, $result);
 
+        // Update session balance and stats
+        $session->balance -= $request->betAmount;
+        $session->balance += $result->winAmount;
+        $session->totalBet += $request->betAmount;
+        $session->totalWin += $result->winAmount;
+        $session->lastActivity = new DateTimeImmutable();
+        $this->repository->updateSession($session);
+
         $this->logger->info('Spin processed successfully', [
             'sessionId' => $sessionId,
             'betAmount' => $request->betAmount,
             'winAmount' => $result->winAmount,
-            'newBalance' => $session->balance - $request->betAmount + $result->winAmount
+            'newBalance' => $session->balance
         ]);
 
         return $result;
@@ -228,39 +236,10 @@ readonly class DefaultGameService implements GameServiceInterface
     /**
      * {@inheritdoc}
      */
-    public function cashOut(string $sessionId): CashoutResultDTO
+    public function getSession(string $sessionId): GameSessionDTO
     {
-        $this->logger->info('Processing cashout request', ['sessionId' => $sessionId]);
-
-        // Get session
-        $session = $this->getActiveSession($sessionId);
-
-        // Deactivate session
-        $session->isActive = false;
-        $session->lastActivity = new DateTimeImmutable();
-        
-        // Update session in repository
-        $this->repository->updateSession($session);
-
-        // Create cashout result
-        $result = new CashoutResultDTO(
-            $session->sessionId,
-            $session->balance,
-            $session->balance - $session->totalWin + $session->totalBet,
-            $session->totalBet,
-            $session->totalWin
-        );
-
-        $this->logger->info('Cashout processed successfully', [
-            'sessionId' => $sessionId,
-            'amount' => $result->amount,
-            'initialBalance' => $result->initialBalance,
-            'totalBet' => $result->totalBet,
-            'totalWin' => $result->totalWin,
-            'netProfit' => $result->getNetProfit()
-        ]);
-
-        return $result;
+        $this->logger->info('Getting session information', ['sessionId' => $sessionId]);
+        return $this->getActiveSession($sessionId);
     }
 
     /**
@@ -279,12 +258,55 @@ readonly class DefaultGameService implements GameServiceInterface
             throw new InvalidArgumentException("Session with ID {$sessionId} not found");
         }
 
-        // Check if session is closed
+        // If session is closed, reactivate it.
         if (!$session->isActive) {
-            $this->logger->warning('Session is closed', ['sessionId' => $sessionId]);
-            throw new InvalidArgumentException("Session with ID {$sessionId} is already closed");
+            $session->isActive = true;
+            $this->repository->updateSession($session);
+            $this->logger->info('Reactivated closed session', ['sessionId' => $sessionId]);
         }
 
         return $session;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function cashOut(string $sessionId): CashoutResultDTO
+    {
+        $this->logger->info('Processing cashout request', ['sessionId' => $sessionId]);
+
+        // Get session
+        $session = $this->getActiveSession($sessionId);
+
+        // Store the current balance for the cashout result
+        $cashoutAmount = $session->balance;
+
+        // Deactivate session and reset balance to zero
+        $session->isActive = false;
+        $session->lastActivity = new DateTimeImmutable();
+        $session->balance = 0.0; // Reset balance to zero after cashout
+        
+        // Update session in repository
+        $this->repository->updateSession($session);
+
+        // Create cashout result
+        $result = new CashoutResultDTO(
+            $session->sessionId,
+            $cashoutAmount, // Use the previously stored balance amount
+            $cashoutAmount - $session->totalWin + $session->totalBet,
+            $session->totalBet,
+            $session->totalWin
+        );
+
+        $this->logger->info('Cashout processed successfully', [
+            'sessionId' => $sessionId,
+            'amount' => $result->amount,
+            'initialBalance' => $result->initialBalance,
+            'totalBet' => $result->totalBet,
+            'totalWin' => $result->totalWin,
+            'netProfit' => $result->getNetProfit()
+        ]);
+
+        return $result;
     }
 }
