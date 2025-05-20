@@ -90,3 +90,13 @@ body {
     opacity: 0.6;
     cursor: not-allowed;
 }
+
+button:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    background-color: #cccccc !important;
+    border-color: #999999 !important;
+    color: #666666 !important;
+    box-shadow: none !important;
+    pointer-events: none !important; /* Предотвращает любые события мыши */
+}
