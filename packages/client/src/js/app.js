@@ -12,6 +12,13 @@ $(document).ready(function() {
     const $slotItems = $('.slot-item');
     const $resultMessage = $('#result-message');
     const $resultAlert = $('#result-alert');
+    const $demoModeAlert = $('<div class="alert alert-warning mt-3">DEMO MODE: Server is not available. Cashout is disabled.</div>').hide();
+    
+    // Add demo mode alert after the slot machine
+    $('#slot-machine').after($demoModeAlert);
+
+    // Flag to track if we're in demo mode
+    let isDemoMode = false;
 
     // Default configuration (will be overridden by server config)
     let gameConfig = {
@@ -187,7 +194,41 @@ $(document).ready(function() {
 
         // Start spinning animation
         animateSpin(function() {
-            // In a real app, this would be an API call to the server
+            // If in demo mode, use local logic for spinning
+            if (isDemoMode) {
+                // Generate random result locally
+                const result = generateLocalSpinResult();
+                
+                // Display result
+                displayResults(result.reels.map(reel => reel[1]));
+                
+                // Update balance
+                if (result.win > 0) {
+                    balance += result.win;
+                    updateDisplay();
+                }
+                
+                // Re-enable spin button
+                isSpinning = false;
+                $spinButton.prop('disabled', false);
+                
+                // Check if game over
+                if (balance < gameConfig.spinCost) {
+                    setTimeout(function() {
+                        showResult({
+                            win: 0,
+                            message: 'Game over! Reload to play again.',
+                            type: 'warning',
+                            isJackpot: false
+                        });
+                        $spinButton.prop('disabled', true);
+                    }, 2000);
+                }
+                
+                return;
+            }
+            
+            // If not in demo mode, use server for spinning
             $.ajax({
                 url: 'http://localhost:8081/api/game/spin',
                 method: 'POST',
@@ -238,6 +279,16 @@ $(document).ready(function() {
 
     // CASH OUT button click handler
     $cashoutButton.on('click', function() {
+        if (isDemoMode) {
+            showResult({
+                win: 0,
+                message: 'Cash out is disabled in demo mode!',
+                type: 'warning',
+                isJackpot: false
+            });
+            return;
+        }
+        
         if (isSpinning) {
             showResult({
                 win: 0,
@@ -349,45 +400,62 @@ $(document).ready(function() {
             method: 'GET',
             dataType: 'json',
             success: function(response) {
-                console.log('Game config loaded:', response);
-
-                if (response.success && response.data) {
-                    // Extract server config
-                    const serverConfig = {
+                console.log('Server config loaded:', response);
+                
+                if (response.success) {
+                    // Override default config with server config
+                    gameConfig = {
+                        ...gameConfig,
+                        initialCredits: response.data.initialCredits || gameConfig.initialCredits,
+                        spinCost: response.data.spinCost || gameConfig.spinCost,
                         symbols: response.data.symbols || gameConfig.symbols,
-                        symbolValues: {},
-                        symbolNames: gameConfig.symbolNames // Keep default names if server doesn't provide them
+                        symbolNames: response.data.symbolNames || gameConfig.symbolNames,
+                        symbolValues: response.data.symbolValues || gameConfig.symbolValues,
+                        jackpotSymbol: response.data.jackpotSymbol || gameConfig.jackpotSymbol,
+                        jackpotMultiplier: response.data.jackpotMultiplier || gameConfig.jackpotMultiplier
                     };
-
-                    // Map payouts to symbolValues
-                    if (response.data.payouts) {
-                        for (const symbol in response.data.payouts) {
-                            serverConfig.symbolValues[symbol] = response.data.payouts[symbol];
-                        }
+                    
+                    // Disable demo mode if it was active
+                    if (isDemoMode) {
+                        disableDemoMode();
                     }
-
-                    // Merge server config with default config
-                    gameConfig = $.extend(gameConfig, serverConfig);
+                    
+                    // Initialize game with server config
+                    initGame();
+                } else {
+                    console.error('Error loading config:', response.message);
+                    enableDemoMode();
                 }
-
-                // Update rewards display
-                updateRewardsDisplay();
-
-                // Initialize game after config is loaded
-                initGame();
             },
             error: function(xhr, status, error) {
-                console.error('Error loading game config:', error);
-                // Use default config
-                console.log('Using default (autonomy) game config');
-
-                // Update rewards display
-                updateRewardsDisplay();
-
-                // Initialize game with default config
-                initGame();
+                console.error('Error loading config:', error);
+                enableDemoMode();
             }
         });
+    }
+    
+    // Enable demo mode when server is not available
+    function enableDemoMode() {
+        isDemoMode = true;
+        $demoModeAlert.show();
+        $cashoutButton.prop('disabled', true);
+        
+        // Use default configuration
+        initGame();
+        
+        showResult({
+            win: 0,
+            message: 'Server is not available. Running in DEMO MODE.',
+            type: 'warning',
+            isJackpot: false
+        });
+    }
+    
+    // Disable demo mode when server becomes available
+    function disableDemoMode() {
+        isDemoMode = false;
+        $demoModeAlert.hide();
+        $cashoutButton.prop('disabled', false);
     }
 
     // Initialize game
@@ -396,10 +464,16 @@ $(document).ready(function() {
 
         // Reset slots to initial state
         resetSlots();
-
+        
         // Enable spin button
         $spinButton.prop('disabled', false);
-        $cashoutButton.prop('disabled', false);
+        
+        // Only enable cashout button if not in demo mode
+        if (!isDemoMode) {
+            $cashoutButton.prop('disabled', false);
+        } else {
+            $cashoutButton.prop('disabled', true);
+        }
 
         // Create session
         $.ajax({
@@ -431,6 +505,48 @@ $(document).ready(function() {
                 updateDisplay();
             }
         });
+    }
+
+    // Generate a local spin result for demo mode
+    function generateLocalSpinResult() {
+        // Generate random reels
+        const reels = [
+            [getRandomSymbol(), getRandomSymbol(), getRandomSymbol()],
+            [getRandomSymbol(), getRandomSymbol(), getRandomSymbol()],
+            [getRandomSymbol(), getRandomSymbol(), getRandomSymbol()]
+        ];
+        
+        // Calculate win amount based on middle row
+        const middleRow = [reels[0][1], reels[1][1], reels[2][1]];
+        let winAmount = 0;
+        let isJackpot = false;
+        let message = 'No win this time!';
+        let type = 'info';
+        
+        // Check for three of a kind
+        if (middleRow[0] === middleRow[1] && middleRow[1] === middleRow[2]) {
+            const symbol = middleRow[0];
+            winAmount = gameConfig.symbolValues[symbol] || 1;
+            
+            // Check for jackpot
+            if (symbol === gameConfig.jackpotSymbol) {
+                winAmount *= gameConfig.jackpotMultiplier;
+                isJackpot = true;
+                message = 'JACKPOT! Congratulations!';
+                type = 'success';
+            } else {
+                message = 'You won!';
+                type = 'success';
+            }
+        }
+        
+        return {
+            reels: reels,
+            win: winAmount,
+            message: message,
+            type: type,
+            isJackpot: isJackpot
+        };
     }
 
     // Start by loading game configuration
