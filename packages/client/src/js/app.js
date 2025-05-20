@@ -36,7 +36,9 @@ $(document).ready(function() {
             'L': 'Lemon',
             'O': 'Orange',
             'W': 'Watermelon'
-        }
+        },
+        jackpotSymbol: "",
+        jackpotMultiplier: 1
     };
 
     // Game state
@@ -528,8 +530,7 @@ $(document).ready(function() {
             const symbol = middleRow[0];
             winAmount = gameConfig.symbolValues[symbol] || 1;
             
-            // Check for jackpot
-            if (symbol === gameConfig.jackpotSymbol) {
+            if (gameConfig.jackpotSymbol && symbol === gameConfig.jackpotSymbol) {
                 winAmount *= gameConfig.jackpotMultiplier;
                 isJackpot = true;
                 message = 'JACKPOT! Congratulations!';
