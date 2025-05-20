@@ -188,10 +188,26 @@ class GameController
                 'trace' => $e->getTraceAsString()
             ]);
 
+            $statusCode = 500; // by default - Internal Server Error
+            
+            $validationErrorMessages = [
+                'Bet amount must be between',
+                'Insufficient funds',
+                'Invalid session',
+                'Session expired'
+            ];
+            
+            foreach ($validationErrorMessages as $errorMessage) {
+                if (str_contains($e->getMessage(), $errorMessage)) {
+                    $statusCode = 400; // Bad Request
+                    break;
+                }
+            }
+
             return $this->jsonResponse($response, [
                 'success' => false,
                 'message' => 'Error processing spin: ' . $e->getMessage()
-            ], 500);
+            ], $statusCode);
         }
     }
 
