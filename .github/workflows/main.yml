@@ -1,0 +1,56 @@
+name: Casino Jackpot CI/CD
+
+on:
+  push:
+    branches: [ dev ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.4'
+        extensions: mbstring, intl, pdo_mysql
+        coverage: xdebug
+
+    - name: Validate composer.json and composer.lock
+      run: cd packages/server && composer validate --strict
+
+    - name: Install dependencies
+      run: cd packages/server && composer install --prefer-dist --no-progress
+
+    - name: Run tests
+      run: cd packages/server && composer test
+
+    - name: Check coding standards
+      run: cd packages/server && composer cs-check
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: Merge dev into master
+        title: Automatic merge from dev to master
+        body: |
+          This PR was automatically created by the CI/CD pipeline.
+          It merges all changes from the dev branch into master.
+        branch: auto-pr-dev-to-master
+        base: master
