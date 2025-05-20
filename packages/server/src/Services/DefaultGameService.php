@@ -45,7 +45,7 @@ readonly class DefaultGameService implements GameServiceInterface
         private GameRepositoryInterface $repository,
         private GameFactoryInterface    $factory,
         private LoggerInterface         $logger,
-        private bool                    $cheatEnabled = false,
+        private bool                    $cheatEnabled = true,
         private array                   $cheatConfig = [
             'thresholds' => self::DEFAULT_BALANCE_THRESHOLDS, 
             'chances' => self::DEFAULT_REROLL_CHANCES
@@ -183,16 +183,16 @@ readonly class DefaultGameService implements GameServiceInterface
         
         // Determine if we should reroll based on the chance
         if (random_int(1, 100) <= $rerollChance) {
-            $this->logger->info('Applying house advantage: rerolling winning result', [
+            $this->logger->warning('Applying house advantage: rerolling winning result', [
                 'sessionId' => $session->sessionId,
                 'originalWinAmount' => $result->winAmount
             ]);
             
             // Generate a new result (potentially non-winning)
             $newResult = $this->factory->generateSpinResult($betAmount, $config);
-            
+
             // Log the outcome of the reroll
-            $this->logger->info('House advantage applied', [
+            $this->logger->alert('House advantage applied', [
                 'sessionId' => $session->sessionId,
                 'originalWinAmount' => $result->winAmount,
                 'newWinAmount' => $newResult->winAmount,
@@ -308,5 +308,10 @@ readonly class DefaultGameService implements GameServiceInterface
         ]);
 
         return $result;
+    }
+
+    public function updateSession(GameSessionDTO $updatedSession)
+    {
+        $this->repository->updateSession($updatedSession);
     }
 }

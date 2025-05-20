@@ -19,6 +19,7 @@ class Routes
     public function register(): void
     {
         $this->app->get('/api/game/config', [GameController::class, 'getConfig']);
+        $this->app->get('/api/game/ping', [GameController::class, 'ping']);
         $this->app->post('/api/game/session', [GameController::class, 'createSession']);
         $this->app->post('/api/game/spin', [GameController::class, 'processSpin']);
         $this->app->post('/api/game/cashout', [GameController::class, 'cashOut']);

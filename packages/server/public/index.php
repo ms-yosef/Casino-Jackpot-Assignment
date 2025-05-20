@@ -18,7 +18,15 @@ define('ROOT_DIR', dirname(__DIR__));
 
 // Load environment variables
 try {
-    $dotenv = Dotenv::createImmutable(ROOT_DIR);
+    $appEnv = getenv('APP_ENVIRONMENT') ?: ($_SERVER['APP_ENVIRONMENT'] ?? 'dev');
+    
+    $envFile = ".env.{$appEnv}";
+    
+    if (!file_exists(ROOT_DIR . '/' . $envFile)) {
+        $envFile = '.env';
+    }
+    
+    $dotenv = Dotenv::createImmutable(ROOT_DIR, $envFile);
     $dotenv->load();
     
     // Make sure variables are also available through getenv()
@@ -27,7 +35,7 @@ try {
     }
     
     // Log successful loading
-    error_log('Environment variables loaded successfully');
+    error_log("Environment variables loaded successfully from {$envFile} in {$appEnv} mode");
 } catch (\Exception $e) {
     error_log('Error loading environment variables: ' . $e->getMessage());
 }

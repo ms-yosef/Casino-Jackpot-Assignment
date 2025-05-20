@@ -127,11 +127,6 @@ class GameController
         $body = $request->getBody()->getContents();
         $data = json_decode($body, true);
         
-        $this->logger->debug('GameController::processSpin', [
-            'data' => $data,
-            'request' => ['Slim\\Psr7\\Request' => []]
-        ]);
-
         // Parse request data
         $sessionId = $data['sessionId'] ?? null;
         $betAmount = (float)($data['betAmount'] ?? 1.0);
@@ -160,12 +155,6 @@ class GameController
             $spinRequest = new SpinRequestDTO($betAmount, $linesCount);
             $result = $this->gameService->processSpin($sessionId, $spinRequest);
 
-            $this->logger->debug('SpinRequestDTO result', [
-                'result' => ['Casino\\Server\\DTO\\SpinResultDTO' => $result],
-                'betAmount' => $betAmount,
-                'linesCount' => $linesCount
-            ]);
-
             // Get updated session
             $updatedSession = $this->gameService->getSession($sessionId);
 
@@ -175,6 +164,34 @@ class GameController
                 'winAmount' => $result->winAmount,
                 'isWin' => $result->isWin()
             ]);
+
+            if ($updatedSession->balance <= 0) {
+                try {
+                    $updatedSession->isActive = false;
+                    $this->gameService->updateSession($updatedSession);
+                    
+                    $this->logger->info('Session closed due to zero balance', [
+                        'sessionId' => $sessionId,
+                        'balance' => $updatedSession->balance,
+                        'totalBet' => $updatedSession->totalBet,
+                        'totalWin' => $updatedSession->totalWin,
+                        'netProfit' => $updatedSession->totalWin - $updatedSession->totalBet
+                    ]);
+                    
+                    return $this->jsonResponse($response, [
+                        'success' => true,
+                        'data' => $result,
+                        'currentBalance' => 0,
+                        'sessionClosed' => true,
+                        'message' => 'Your credits have reached zero. Session closed.'
+                    ]);
+                } catch (Exception $e) {
+                    $this->logger->error('Error auto-closing session', [
+                        'sessionId' => $sessionId,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
 
             return $this->jsonResponse($response, [
                 'success' => true,
@@ -289,6 +306,22 @@ class GameController
             $response->getBody()->write(json_encode($responseData));
             return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
         }
+    }
+
+    /**
+     * Simple ping endpoint to check server availability
+     *
+     * @param Request $request HTTP request
+     * @param Response $response HTTP response
+     * @return Response
+     */
+    public function ping(Request $request, Response $response): Response
+    {
+        return $this->jsonResponse($response, [
+            'success' => true,
+            'message' => 'Server is available',
+            'timestamp' => (new \DateTimeImmutable())->format('Y-m-d H:i:s')
+        ]);
     }
 
     private function jsonResponse(Response $response, array $data, int $status = 200): Response

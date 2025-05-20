@@ -123,7 +123,7 @@ return [
             $container->get(GameRepositoryInterface::class),
             $container->get(GameFactoryInterface::class),
             $container->get(LoggerInterface::class),
-            $settings['cheatEnabled'] ?? false,
+            $settings['cheatEnabled'] ?? true,
             $settings['cheatConfig'] ?? ['thresholds' => [40, 60], 'chances' => [30, 60]]
         );
     },

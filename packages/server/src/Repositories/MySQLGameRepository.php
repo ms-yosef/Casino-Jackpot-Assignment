@@ -103,8 +103,7 @@ class MySQLGameRepository extends AbstractGameRepository
      */
     public function getGameConfig(): GameConfigDTO
     {
-        //$this->logger->info('Getting game configuration');
-        $this->logger->debug('Getting game configuration', ['gameConfig' => $this->gameConfig]);
+        $this->logger->info('Getting game configuration');
         return $this->gameConfig;
     }
 

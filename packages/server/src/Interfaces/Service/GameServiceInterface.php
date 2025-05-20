@@ -51,4 +51,6 @@ interface GameServiceInterface
      * @throws \InvalidArgumentException If the session not found
      */
     public function getSession(string $sessionId): GameSessionDTO;
+
+    public function updateSession(GameSessionDTO $updatedSession);
 }

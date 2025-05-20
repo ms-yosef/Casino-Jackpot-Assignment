@@ -26,6 +26,10 @@
      - minimalistic UI for the result of the roll
 - Implemented autonomy mode:
     - implemented a random number generator for the result of the roll
+- Improved error handling:
+    - Added demo mode detection when server is unavailable
+    - Implemented automatic switching to demo mode when server connection fails
+    - Added visual indication of demo mode with disabled cashout functionality
 
 ## Server-side
 - Implemented using of Swagger OpenApi for API documentation
@@ -34,6 +38,7 @@
     - POST /api/game/roll
     - POST /api/game/cashout
     - POST /api/game/session
+    - GET /api/game/ping
 - Implemented DTO classes
 - Implemented Interfaces (Factory, Repository, Service)
 - Created basic functionality for App:
@@ -47,9 +52,22 @@
     - If the user has above 60 credits, the server acts the same, but the chance of re-rolling the round increases to 60%.
         - If the roll is true, then the server re-rolls and communicates the new result back.
 - Created MySQLGameRepository, app switched to store sessions in DB
+- Added endpoint 'Ping'
+- Improved session management:
+    - Fixed session closure logic when player balance reaches zero
+    - Enhanced logging for better debugging and monitoring
+    - Added proper error handling for edge cases
 
 ## Testing
 - Created Unit-tests for:
     - InMemoryGameRepository
     - DefaultGameFactory
     - DefaultGameService
+- Created Functional tests
+- Created Integration tests
+
+## DevOps & Deployment
+- Implemented CI/CD pipeline using GitHub Actions:
+    - Automated testing on each push to dev branch
+    - Automated PR creation for merging from dev to master
+- Added environment-specific configuration for development and production

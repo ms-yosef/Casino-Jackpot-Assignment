@@ -120,7 +120,7 @@ readonly class DefaultGameFactory implements GameFactoryInterface
         
         // Generate random matrix of symbols
         $matrix = $this->generateRandomMatrix($config);
-        $this->logger->debug('Generated random matrix', ['matrix' => $matrix]);
+
         // Calculate win amount based on the matrix and bet amount
         $winData = $this->calculateWin($matrix, $betAmount, $config);
         $winAmount = $winData['totalWin'];
@@ -197,7 +197,6 @@ readonly class DefaultGameFactory implements GameFactoryInterface
         foreach ($matrix as $row => $rowValue) {
             $rowSymbols = $rowValue;
             $winData = $this->checkLineWin($rowSymbols, $betAmount, $config);
-            $this->logger->debug('calculateWin', ['row' => $row, 'rowSymbols' => $rowSymbols, 'winData' => $winData]);
             if ($winData['win'] > 0) {
                 $totalWin += $winData['win'];
                 $winLines[] = [

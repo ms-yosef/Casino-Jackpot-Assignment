@@ -26,10 +26,10 @@ $environments = [
         'APP_URL' => 'http://localhost:8080',
         'DB_HOST' => 'localhost',
         'DB_NAME' => 'casino_jackpot_dev',
-        'DB_USER' => 'root',
-        'DB_PASS' => '',
+        'DB_USER' => 'casino_user',
+        'DB_PASS' => 'change_me_in_production',
         'LOG_LEVEL' => 'debug',
-        'CHEAT_ENABLED' => 'true',
+        'GAME_CHEAT_ENABLED' => 'true',
     ],
     'test' => [
         'APP_ENV' => 'testing',
@@ -37,10 +37,10 @@ $environments = [
         'APP_URL' => 'http://localhost:8080',
         'DB_HOST' => 'localhost',
         'DB_NAME' => 'casino_jackpot_test',
-        'DB_USER' => 'root',
-        'DB_PASS' => '',
+        'DB_USER' => 'casino_user',
+        'DB_PASS' => 'change_me_in_production',
         'LOG_LEVEL' => 'debug',
-        'CHEAT_ENABLED' => 'true',
+        'GAME_CHEAT_ENABLED' => 'true',
     ],
     'prod' => [
         'APP_ENV' => 'production',
@@ -51,7 +51,7 @@ $environments = [
         'DB_USER' => 'casino_user',
         'DB_PASS' => 'change_me_in_production',
         'LOG_LEVEL' => 'error',
-        'CHEAT_ENABLED' => 'false',
+        'GAME_CHEAT_ENABLED' => 'true',
     ],
 ];
 

@@ -45,6 +45,11 @@ $(document).ready(function() {
     let balance = 0;
     let isSpinning = false;
     let sessionId = null;
+    let serverCheckInterval = null; // Interval for checking server status
+    let timeoutInterval = 5000; // 5 seconds timeout for server availability check
+
+    // API base URL
+    const apiBaseUrl = 'http://localhost:8081';
 
     // Update displayed values
     function updateDisplay() {
@@ -131,6 +136,11 @@ $(document).ready(function() {
                     if (serverWinInfo !== null) {
                         // Use server's win information
                         result = serverWinInfo;
+                        
+                        if (result.newBalance !== undefined) {
+                            balance = result.newBalance;
+                            updateDisplay();
+                        }
                     } else {
                         // Check for win locally (for demo mode)
                         result = checkWin(results);
@@ -237,7 +247,7 @@ $(document).ready(function() {
             
             // If not in demo mode, use server for spinning
             $.ajax({
-                url: 'http://localhost:8081/api/game/spin',
+                url: apiBaseUrl + '/api/game/spin',
                 method: 'POST',
                 dataType: 'json',
                 contentType: 'application/json',
@@ -245,6 +255,7 @@ $(document).ready(function() {
                     sessionId: sessionId,
                     betAmount: gameConfig.spinCost
                 }),
+                timeout: timeoutInterval,
                 success: function(response) {
                     console.log('Server response:', response);
 
@@ -253,11 +264,7 @@ $(document).ready(function() {
                         // Server sends data in format [["L", "L", "L"]] (rows-based)
                         const results = response.data.reels[0] || [];
 
-                        // Refresh balance from Server's response
-                        if (response.currentBalance !== undefined) {
-                            balance = response.currentBalance;
-                            updateDisplay();
-                        }
+                        let newBalance = response.currentBalance;
 
                         // Create win info object based on server data
                         const serverWinInfo = {
@@ -266,7 +273,8 @@ $(document).ready(function() {
                                 ? `Congratulations! You won ${response.data.winAmount} credits!` 
                                 : 'Sorry, you lost. Try again!',
                             type: response.data.winAmount > 0 ? 'success' : 'danger',
-                            isJackpot: false // Server would indicate if it's a jackpot
+                            isJackpot: false, // Server would indicate if it's a jackpot
+                            newBalance: newBalance
                         };
 
                         // Display results with server's win information
@@ -284,6 +292,11 @@ $(document).ready(function() {
                 },
                 error: function(xhr, status, error) {
                     console.error('Error spinning:', error);
+                    
+                    if (!isDemoMode) {
+                        enableDemoMode();
+                    }
+                    
                     // Simulate results for demo
                     const simulatedResults = [
                         getRandomSymbol(),
@@ -320,11 +333,12 @@ $(document).ready(function() {
 
         // In a real app, this would be an API call to the server
         $.ajax({
-            url: 'http://localhost:8081/api/game/cashout',
+            url: apiBaseUrl + '/api/game/cashout',
             method: 'POST',
             dataType: 'json',
             contentType: 'application/json',
             data: JSON.stringify({ sessionId: sessionId }),
+            timeout: timeoutInterval,
             success: function(response) {
                 console.log('Cash out successful:', response);
 
@@ -400,9 +414,14 @@ $(document).ready(function() {
     function updateRewardsDisplay() {
         const fragment = document.createDocumentFragment();
         
+        if (!gameConfig.symbols || !Array.isArray(gameConfig.symbols)) {
+            console.error('Invalid symbols configuration:', gameConfig.symbols);
+            gameConfig.symbols = ['C', 'L', 'O', 'W'];
+        }
+        
         for (const symbol of gameConfig.symbols) {
-            const name = gameConfig.symbolNames[symbol];
-            const value = gameConfig.symbolValues[symbol];
+            const name = gameConfig.symbolNames[symbol] || symbol;
+            const value = gameConfig.symbolValues[symbol] || 0;
             const listItem = document.createElement('li');
             listItem.className = 'list-group-item';
             listItem.textContent = `${symbol} - ${name} (${value} credits)`;
@@ -412,47 +431,28 @@ $(document).ready(function() {
         $('.list-group').empty().append(fragment);
     }
 
-    // Load game configuration from server
-    function loadGameConfig() {
+    // Function to check server availability
+    function checkServerAvailability() {
         $.ajax({
-            url: 'http://localhost:8081/api/game/config',
+            url: apiBaseUrl + '/api/game/ping',
             method: 'GET',
-            dataType: 'json',
-            success: function(response) {
-                console.log('Server config loaded:', response);
-                
-                if (response.success) {
-                    // Override default config with server config
-                    gameConfig = {
-                        ...gameConfig,
-                        initialCredits: response.data.initialCredits || gameConfig.initialCredits,
-                        spinCost: response.data.spinCost || gameConfig.spinCost,
-                        symbols: response.data.symbols || gameConfig.symbols,
-                        symbolNames: response.data.symbolNames || gameConfig.symbolNames,
-                        symbolValues: response.data.symbolValues || gameConfig.symbolValues,
-                        jackpotSymbol: response.data.jackpotSymbol || gameConfig.jackpotSymbol,
-                        jackpotMultiplier: response.data.jackpotMultiplier || gameConfig.jackpotMultiplier
-                    };
-                    
-                    // Disable demo mode if it was active
-                    if (isDemoMode) {
-                        disableDemoMode();
-                    }
-                    
-                    // Initialize game with server config
-                    initGame();
-                } else {
-                    console.error('Error loading config:', response.message);
-                    enableDemoMode();
+            timeout: 3000, // 3 seconds timeout
+            success: function() {
+                if (isDemoMode) {
+                    console.log('Server is now available. Exiting demo mode.');
+                    disableDemoMode();
+                    loadGameConfig(); // Reload configuration from server
                 }
             },
-            error: function(xhr, status, error) {
-                console.error('Error loading config:', error);
-                enableDemoMode();
+            error: function() {
+                if (!isDemoMode) {
+                    console.log('Server is not available. Switching to demo mode.');
+                    enableDemoMode();
+                }
             }
         });
     }
-    
+
     // Enable demo mode when server is not available
     function enableDemoMode() {
         isDemoMode = true;
@@ -460,7 +460,9 @@ $(document).ready(function() {
         $cashoutButton.prop('disabled', true);
         
         // Use default configuration
-        initGame();
+        if (!balance) {
+            initGame();
+        }
         
         showResult({
             win: 0,
@@ -468,6 +470,11 @@ $(document).ready(function() {
             type: 'warning',
             isJackpot: false
         });
+        
+        // Start checking for server availability every 10 seconds
+        if (!serverCheckInterval) {
+            serverCheckInterval = setInterval(checkServerAvailability, 10000);
+        }
     }
     
     // Disable demo mode when server becomes available
@@ -475,8 +482,53 @@ $(document).ready(function() {
         isDemoMode = false;
         $demoModeAlert.hide();
         $cashoutButton.prop('disabled', false);
+        
+        // Stop checking for server availability
+        if (serverCheckInterval) {
+            clearInterval(serverCheckInterval);
+            serverCheckInterval = null;
+        }
     }
 
+    // Load game configuration from server
+    function loadGameConfig() {
+        $.ajax({
+            url: apiBaseUrl + '/api/game/config',
+            method: 'GET',
+            timeout: timeoutInterval,
+            success: function(response) {
+                if (response.success) {
+                    console.log('Server config loaded:', response.data);
+                    
+                    const defaultConfig = { ...gameConfig };
+                    
+                    gameConfig = {
+                        ...defaultConfig,
+                        initialCredits: response.data.initialCredits || defaultConfig.initialCredits,
+                        spinCost: response.data.spinCost || defaultConfig.spinCost,
+                        symbols: Array.isArray(response.data.symbols) ? response.data.symbols : defaultConfig.symbols,
+                        symbolNames: response.data.symbolNames || defaultConfig.symbolNames,
+                        symbolValues: response.data.symbolValues || defaultConfig.symbolValues,
+                        jackpotSymbol: response.data.jackpotSymbol || defaultConfig.jackpotSymbol,
+                        jackpotMultiplier: response.data.jackpotMultiplier || defaultConfig.jackpotMultiplier
+                    };
+                    
+                    console.log('Final config:', gameConfig);
+                    updateRewardsDisplay();
+                    disableDemoMode();
+                    initGame();
+                } else {
+                    console.error('Error loading game config:', response.message);
+                    enableDemoMode();
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error loading game config:', error);
+                enableDemoMode();
+            }
+        });
+    }
+    
     // Initialize game
     function initGame() {
         console.log('Initializing game with config:', gameConfig);
@@ -496,11 +548,12 @@ $(document).ready(function() {
 
         // Create session
         $.ajax({
-            url: 'http://localhost:8081/api/game/session',
+            url: apiBaseUrl + '/api/game/session',
             method: 'POST',
             dataType: 'json',
             contentType: 'application/json',
             data: JSON.stringify({ initialBalance: gameConfig.initialCredits }),
+            timeout: timeoutInterval,
             success: function(response) {
                 console.log('Session created:', response);
 
@@ -567,6 +620,15 @@ $(document).ready(function() {
         };
     }
 
-    // Start by loading game configuration
-    loadGameConfig();
+    function initializeApp() {
+        checkServerAvailability();
+        
+        if (!isDemoMode) {
+            loadGameConfig();
+        } else {
+            initGame();
+        }
+    }
+    
+    initializeApp();
 });
